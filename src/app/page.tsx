@@ -1,8 +1,6 @@
-import TestimonialSection from "@/components/TestimonialSection";
-import Navbar from "@/components/Navbar";
 import Header from "@/components/Header";
 import HomeContent from "@/components/HomeContent";
-import Footer from "@/components/Footer";
+import TestimonialSection from "@/components/TestimonialSection";
 
 export default function Home() {
   return (

@@ -1,15 +1,19 @@
 "use client";
-import { useState, ChangeEvent, FormEvent } from "react";
 import uploadFile from "@/actions/upload";
+import { ChangeEvent, FormEvent, useState } from "react";
 
 const UploadForm = () => {
   const [file, setFile] = useState<File | null>(null);
+  const [fileName, setFileName] = useState("No file selected.");
   const [message, setMessage] = useState("");
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       setFile(files[0]);
+      setFileName(files[0].name);
+    } else {
+      setFileName("No file selected");
     }
   };
 
@@ -36,17 +40,30 @@ const UploadForm = () => {
     }
   };
 
+  console.log("file object:", file);
   return (
     <form onSubmit={handleSubmit}>
       <div>
-        <label>
-          File:
-          <input type="file" onChange={handleFileChange} required />
+        <label
+          htmlFor="file-upload"
+          className="cursor-pointer p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+        >
+          Choose File
         </label>
+        <input
+          id="file-upload"
+          className="hidden"
+          type="file"
+          onChange={handleFileChange}
+          required
+        />
+        <span id="file-name" className="text-gray-500 ml-5">
+          {fileName}
+        </span>
       </div>
-      <div>
+      <div className="flex justify-center">
         <button
-          className="p-2 mt-2 border-sky-900 rounded-md bg-sky-900 text-white"
+          className="pl-8 pr-8 pt-3 pb-3 mt-6 border-sky-900 rounded-md bg-sky-900 text-white font-bold text-lg"
           type="submit"
         >
           Upload
