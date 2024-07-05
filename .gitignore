@@ -32,6 +32,7 @@ yarn-error.log*
 # Ignore Prisma client output
 prisma/client/
 
+.history
 
 # vercel
 .vercel
