@@ -1,13 +1,33 @@
 "use server";
 
-import fs from "fs";
-import path from "path";
 import db from "@/db/db";
+import AWS from "aws-sdk";
 
-const uploadDir = path.join(process.cwd(), "src/fileUploads");
+// Configure the AWS SDK with the region and credentials
+const s3 = new AWS.S3({
+  region: process.env.AWS_REGION,
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+});
 
-// Ensure the directory exists
-fs.mkdirSync(uploadDir, { recursive: true });
+// Helper function to convert a ReadableStream to a Buffer
+async function streamToBuffer(
+  stream: ReadableStream<Uint8Array>
+): Promise<Buffer> {
+  const reader = stream.getReader();
+  const chunks = [];
+  let done = false;
+
+  while (!done) {
+    const { value, done: readDone } = await reader.read();
+    if (value) {
+      chunks.push(Buffer.from(value));
+    }
+    done = readDone;
+  }
+
+  return Buffer.concat(chunks);
+}
 
 export default async function uploadFile(formData: FormData) {
   const file = formData.get("file") as File;
@@ -16,35 +36,42 @@ export default async function uploadFile(formData: FormData) {
     throw new Error("File is required");
   }
 
-  // Use the original filename from the file object
   const originalFileName = file.name;
-  const filePath = path.join(uploadDir, originalFileName);
+  const fileStream = file.stream();
+  const contentType = file.type;
+  const bucketName = process.env.S3_BUCKET_NAME;
 
-  const writableStream = fs.createWriteStream(filePath);
-  const reader = file.stream().getReader();
-
-  async function writeChunk({
-    done,
-    value,
-  }: ReadableStreamReadResult<Uint8Array>): Promise<void> {
-    if (done) {
-      writableStream.end();
-      return;
-    }
-    writableStream.write(Buffer.from(value));
-    await reader.read().then(writeChunk);
+  // Check if all required parameters are defined
+  if (!bucketName || !originalFileName || !fileStream || !contentType) {
+    throw new Error("Missing required parameters for file upload");
   }
 
-  await reader.read().then(writeChunk);
+  try {
+    // Convert the ReadableStream to a Buffer
+    const fileBuffer = await streamToBuffer(fileStream);
 
-  const relativeFilePath = path.relative(process.cwd(), filePath);
+    // Upload file to S3
+    const params = {
+      Bucket: bucketName,
+      Key: originalFileName,
+      Body: fileBuffer,
+      ContentType: contentType,
+    };
 
-  const data = await db.file.create({
-    data: {
-      name: originalFileName,
-      url: relativeFilePath,
-    },
-  });
+    const s3Response = await s3.upload(params).promise();
+    const fileUrl = s3Response.Location;
 
-  return data;
+    // Store the file URL in the database
+    const data = await db.file.create({
+      data: {
+        name: originalFileName,
+        url: fileUrl,
+      },
+    });
+
+    return data;
+  } catch (error) {
+    console.error("Error uploading file to S3:", error);
+    throw new Error("Failed to upload file");
+  }
 }
