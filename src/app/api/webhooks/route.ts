@@ -6,7 +6,6 @@ import { createUser } from "@/actions/user";
 import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
-  // You can find this in the Clerk Dashboard -> Webhooks -> choose the endpoint
   const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
   if (!WEBHOOK_SECRET) {
@@ -23,7 +22,7 @@ export async function POST(req: Request) {
 
   // If there are no headers, error out
   if (!svix_id || !svix_timestamp || !svix_signature) {
-    return new Response("Error occured -- no svix headers", {
+    return new Response("Error occurred -- no svix headers", {
       status: 400,
     });
   }
@@ -46,51 +45,50 @@ export async function POST(req: Request) {
     }) as WebhookEvent;
   } catch (err) {
     console.error("Error verifying webhook:", err);
-    return new Response("Error occured", {
+    return new Response("Error occurred", {
       status: 400,
     });
   }
 
-  // Do something with the payload
-  // For this guide, you simply log the payload to the console
-  const { id } = evt.data;
   const eventType = evt.type;
 
-  // CREATE USER
-
+  // Handle user.created event
   if (eventType === "user.created") {
-    const {
-      id,
-      email_addresses,
-      first_name,
-      last_name,
-      username,
-      password_enabled,
-    } = evt.data;
-    const name = `${first_name} ${last_name}`;
-    const user = await createUser({
-      id,
-      email: email_addresses[0].email_address,
-      name,
-      username,
-      password_enabled,
-    });
-    const newUser = await createUser(user);
+    const { id, email_addresses } = evt.data;
 
-    if (newUser) {
+    if (!email_addresses || email_addresses.length === 0) {
+      return new Response("No email address found for the user", {
+        status: 400,
+      });
+    }
+
+    const email = email_addresses[0].email_address;
+
+    try {
+      const newUser = await createUser({
+        id: id,
+        email,
+        clerkUserId: id, // Store Clerk user ID for reference
+      });
+
       await clerkClient.users.updateUserMetadata(id, {
         publicMetadata: {
           userId: newUser.id,
         },
       });
-    }
-    return NextResponse.json({
-      message: "User created successfully",
-      user: newUser,
-    });
-  }
-  console.log(`Webhook with and ID of ${id} and type of ${eventType}`);
-  console.log("Webhook body:", body);
 
+      return NextResponse.json({
+        message: "User created successfully",
+        user: newUser,
+      });
+    } catch (error) {
+      console.error("Error creating user:", error);
+      return new Response("Error creating user", {
+        status: 500,
+      });
+    }
+  }
+
+  console.log(`Unhandled event type: ${eventType}`);
   return new Response("", { status: 200 });
 }
