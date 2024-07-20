@@ -74,7 +74,7 @@ export default async function uploadFile(formData: FormData, userId: string) {
         name: uniqueFileName,
         url: fileUrl,
         users: {
-          connect: { id: userId },
+          connect: { clerkUserId: userId },
         },
       },
     });
