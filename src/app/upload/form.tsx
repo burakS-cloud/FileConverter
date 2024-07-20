@@ -1,8 +1,11 @@
 "use client";
+
 import uploadFile from "@/actions/upload";
+import { useUser } from "@clerk/nextjs";
 import { ChangeEvent, FormEvent, useState } from "react";
 
 const UploadForm = () => {
+  const { user } = useUser(); // Get the current user's information
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("No file selected.");
   const [message, setMessage] = useState("");
@@ -25,11 +28,16 @@ const UploadForm = () => {
       return;
     }
 
+    if (!user) {
+      setMessage("User not authenticated.");
+      return;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
 
     try {
-      await uploadFile(formData);
+      await uploadFile(formData, user.id); // Pass the userId to the uploadFile function
       setMessage("File uploaded successfully!");
     } catch (error) {
       if (error instanceof Error) {

@@ -1,9 +1,8 @@
 "use server";
-
 import db from "@/db/db";
 import AWS from "aws-sdk";
+import { v4 as uuidv4 } from "uuid";
 
-// Configure the AWS SDK with the region and credentials
 const s3 = new AWS.S3({
   region: process.env.AWS_REGION,
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -29,7 +28,7 @@ async function streamToBuffer(
   return Buffer.concat(chunks);
 }
 
-export default async function uploadFile(formData: FormData) {
+export default async function uploadFile(formData: FormData, userId: string) {
   const file = formData.get("file") as File;
 
   if (!file) {
@@ -41,19 +40,27 @@ export default async function uploadFile(formData: FormData) {
   const contentType = file.type;
   const bucketName = process.env.S3_BUCKET_NAME;
 
+  console.log("Bucket Name:", bucketName);
+  console.log("Original File Name:", originalFileName);
+  console.log("File Stream:", fileStream);
+  console.log("Content Type:", contentType);
+
   // Check if all required parameters are defined
   if (!bucketName || !originalFileName || !fileStream || !contentType) {
     throw new Error("Missing required parameters for file upload");
   }
 
+  // Append a UUID to the original file name to ensure uniqueness
+  const uniqueFileName = `${originalFileName}-${uuidv4()}`;
+
   try {
     // Convert the ReadableStream to a Buffer
     const fileBuffer = await streamToBuffer(fileStream);
 
-    // Upload file to S3
+    // Upload file to S3 with public-read ACL
     const params = {
       Bucket: bucketName,
-      Key: originalFileName,
+      Key: uniqueFileName,
       Body: fileBuffer,
       ContentType: contentType,
     };
@@ -61,15 +68,18 @@ export default async function uploadFile(formData: FormData) {
     const s3Response = await s3.upload(params).promise();
     const fileUrl = s3Response.Location;
 
-    // Store the file URL in the database
-    const data = await db.file.create({
+    // Create file record in the database and associate it with the user
+    const newFile = await db.file.create({
       data: {
-        name: originalFileName,
+        name: uniqueFileName,
         url: fileUrl,
+        users: {
+          connect: { id: userId },
+        },
       },
     });
 
-    return data;
+    return newFile;
   } catch (error) {
     console.error("Error uploading file to S3:", error);
     throw new Error("Failed to upload file");
