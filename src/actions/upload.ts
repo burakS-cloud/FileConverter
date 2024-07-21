@@ -3,6 +3,7 @@ import db from "@/db/db";
 import AWS from "aws-sdk";
 import { v4 as uuidv4 } from "uuid";
 
+console.log("process:", process);
 const s3 = new AWS.S3({
   region: process.env.AWS_REGION,
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -28,7 +29,10 @@ async function streamToBuffer(
   return Buffer.concat(chunks);
 }
 
-export default async function uploadFile(formData: FormData, userId: string) {
+export default async function uploadFile(
+  formData: FormData,
+  clerkUserId: string
+) {
   const file = formData.get("file") as File;
 
   if (!file) {
@@ -40,10 +44,18 @@ export default async function uploadFile(formData: FormData, userId: string) {
   const contentType = file.type;
   const bucketName = process.env.S3_BUCKET_NAME;
 
+  console.log("Environment Variables:", {
+    bucketName: process.env.S3_BUCKET_NAME,
+    region: process.env.AWS_REGION,
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  });
+
   console.log("Bucket Name:", bucketName);
   console.log("Original File Name:", originalFileName);
   console.log("File Stream:", fileStream);
   console.log("Content Type:", contentType);
+  console.log("Clerk User ID:", clerkUserId);
 
   // Check if all required parameters are defined
   if (!bucketName || !originalFileName || !fileStream || !contentType) {
@@ -54,6 +66,15 @@ export default async function uploadFile(formData: FormData, userId: string) {
   const uniqueFileName = `${originalFileName}-${uuidv4()}`;
 
   try {
+    // Check if the user exists in the database
+    const userExists = await db.user.findUnique({
+      where: { clerkUserId },
+    });
+
+    if (!userExists) {
+      throw new Error(`User with Clerk ID ${clerkUserId} not found`);
+    }
+
     // Convert the ReadableStream to a Buffer
     const fileBuffer = await streamToBuffer(fileStream);
 
@@ -74,7 +95,7 @@ export default async function uploadFile(formData: FormData, userId: string) {
         name: uniqueFileName,
         url: fileUrl,
         users: {
-          connect: { clerkUserId: userId },
+          connect: { id: userExists.id },
         },
       },
     });
