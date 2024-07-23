@@ -17,7 +17,7 @@ model User {
   id             String    @id @default(uuid())
   email          String    @unique
   clerkUserId    String    @unique
-  files          File[]    @relation("UserFiles")
+  files          UserFile[]
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -26,10 +26,23 @@ model User {
 model File {
   id             String    @id @default(uuid())
   name           String
-  url            String
-  users          User[]    @relation("UserFiles")
+  url            String    @unique
+  users          UserFile[]
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+}
+
+model UserFile {
+  id        String @id @default(uuid())
+  userId    String
+  fileId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fileId])
+  @@index([fileId])
 }
 

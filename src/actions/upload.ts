@@ -100,6 +100,9 @@ export default async function uploadFile(
       },
     });
 
+    console.log("newFile:", newFile);
+    console.log("userExists:", userExists);
+
     return newFile;
   } catch (error) {
     console.error("Error uploading file to S3:", error);
