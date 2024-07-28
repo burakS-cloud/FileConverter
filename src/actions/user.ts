@@ -20,7 +20,7 @@ import db from "@/db/db";
 
 // Define the data type for the createUser function
 interface CreateUserParams {
-  id: string;
+  id: string | undefined;
   email: string;
   clerkUserId: string;
 }

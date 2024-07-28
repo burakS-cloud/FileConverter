@@ -3,7 +3,6 @@ import db from "@/db/db";
 import AWS from "aws-sdk";
 import { v4 as uuidv4 } from "uuid";
 
-console.log("process:", process);
 const s3 = new AWS.S3({
   region: process.env.AWS_REGION,
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -44,17 +43,6 @@ export default async function uploadFile(
   const contentType = file.type;
   const bucketName = process.env.S3_BUCKET_NAME;
 
-  console.log("Environment Variables:", {
-    bucketName: process.env.S3_BUCKET_NAME,
-    region: process.env.AWS_REGION,
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  });
-
-  console.log("Bucket Name:", bucketName);
-  console.log("Original File Name:", originalFileName);
-  console.log("File Stream:", fileStream);
-  console.log("Content Type:", contentType);
   console.log("Clerk User ID:", clerkUserId);
 
   // Check if all required parameters are defined
@@ -96,6 +84,8 @@ export default async function uploadFile(
     const fileUrl = s3Response.Location;
 
     // Create file record in the database and associate it with the user
+
+    console.log("userExists:", userExists);
     const newFile = await db.file.create({
       data: {
         name: uniqueFileName,

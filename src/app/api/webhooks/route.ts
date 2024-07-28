@@ -69,7 +69,7 @@ export async function POST(req: Request) {
 
     try {
       const newUser = await createUser({
-        id: id,
+        id: undefined,
         email,
         clerkUserId: id, // Store Clerk user ID for reference
       });
