@@ -36,7 +36,7 @@ export default async function uploadFile(
   const file = formData.get("file") as File;
 
   if (!file) {
-    throw new Error("File is required");
+    return { error: true, message: "No file found in form data" };
   }
 
   const originalFileName = file.name;
@@ -59,7 +59,10 @@ export default async function uploadFile(
 
   // Check if all required parameters are defined
   if (!bucketName || !originalFileName || !fileStream || !contentType) {
-    throw new Error("Missing required parameters for file upload");
+    return {
+      error: true,
+      message: "Missing required parameters for file upload",
+    };
   }
 
   // Append a UUID to the original file name to ensure uniqueness
@@ -72,7 +75,10 @@ export default async function uploadFile(
     });
 
     if (!userExists) {
-      throw new Error(`User with Clerk ID ${clerkUserId} not found`);
+      return {
+        error: true,
+        message: `User with Clerk ID ${clerkUserId} not found`,
+      };
     }
 
     // Convert the ReadableStream to a Buffer
@@ -106,6 +112,6 @@ export default async function uploadFile(
     return newFile;
   } catch (error) {
     console.error("Error uploading file to S3:", error);
-    throw new Error("Failed to upload file");
+    return { error: true, message: "Failed to upload file" };
   }
 }
