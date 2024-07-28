@@ -88,16 +88,25 @@ export default async function uploadFile(
     console.log("userExists:", userExists);
     const newFile = await db.file.create({
       data: {
-        name: uniqueFileName,
+        name: originalFileName,
         url: fileUrl,
-        users: {
-          connect: { id: userExists.id },
-        },
       },
     });
 
     console.log("newFile:", newFile);
     console.log("userExists:", userExists);
+
+    await db.userFile.create({
+      data: {
+        userId: userExists.id,
+        fileId: newFile.id,
+      },
+    });
+
+    console.log("UserFile created:", {
+      userId: userExists.id,
+      fileId: newFile.id,
+    });
 
     return newFile;
   } catch (error) {
