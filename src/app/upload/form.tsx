@@ -47,7 +47,7 @@ const UploadForm = () => {
       }
     }
   };
-
+  console.log("user from clerk in form:", user);
   console.log("file object:", file);
   return (
     <form onSubmit={handleSubmit}>

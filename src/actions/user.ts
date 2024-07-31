@@ -27,7 +27,7 @@ interface CreateUserParams {
 
 export async function getUser(userId: string) {
   try {
-    const data = await db.user.findUnique({ where: { id: userId } });
+    const data = await db.user.findUnique({ where: { clerkUserId: userId } });
     if (!data) {
       throw new Error(`User with ID ${userId} not found`);
     }
@@ -35,6 +35,34 @@ export async function getUser(userId: string) {
   } catch (error) {
     console.error(`Error fetching user with ID ${userId}:`, error);
     throw new Error(`Failed to fetch user with ID ${userId}`);
+  }
+}
+
+export async function getUserFiles(userId: string) {
+  try {
+    // Fetch all UserFile records associated with the user
+    const theUser = await getUser(userId);
+    const userFiles = await db.userFile.findMany({
+      where: {
+        userId: theUser?.id,
+      },
+      include: {
+        file: true, // Include the File data
+      },
+    });
+
+    // Extract file data from the userFiles result
+    const files = userFiles.map((userFile) => ({
+      id: userFile.file.id,
+      name: userFile.file.name,
+      url: userFile.file.url,
+      createdAt: userFile.file.createdAt,
+    }));
+
+    return files;
+  } catch (error) {
+    console.error("Error fetching user files:", error);
+    throw new Error("Failed to fetch user files");
   }
 }
 
