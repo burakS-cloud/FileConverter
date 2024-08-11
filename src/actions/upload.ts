@@ -1,5 +1,6 @@
 "use server";
 import db from "@/db/db";
+import { ratelimit } from "@/server/ratelimit";
 import AWS from "aws-sdk";
 import { v4 as uuidv4 } from "uuid";
 
@@ -67,6 +68,12 @@ export default async function uploadFile(
         error: true,
         message: `User with Clerk ID ${clerkUserId} not found`,
       };
+    }
+
+    const { success } = await ratelimit.limit(userExists.id);
+
+    if (!success) {
+      return { error: true, message: "Unable to process at this time" };
     }
 
     // Convert the ReadableStream to a Buffer
