@@ -1,6 +1,7 @@
 "use server";
 import db from "@/db/db";
 import { ratelimit } from "@/server/ratelimit";
+import { clerkClient } from "@clerk/nextjs/server";
 import AWS from "aws-sdk";
 import { v4 as uuidv4 } from "uuid";
 
@@ -74,6 +75,14 @@ export default async function uploadFile(
 
     if (!success) {
       return { error: true, message: "Unable to process at this time" };
+    }
+
+    const fullUserData = await clerkClient.users.getUser(
+      userExists.clerkUserId
+    );
+
+    if (!fullUserData?.privateMetadata?.["can-upload"] !== true) {
+      return { error: true, message: "User is not allowed to upload files" };
     }
 
     // Convert the ReadableStream to a Buffer
