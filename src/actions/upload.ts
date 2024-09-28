@@ -34,9 +34,11 @@ export default async function uploadFile(
   formData: FormData,
   clerkUserId: string
 ) {
-  const file = formData.get("file") as File;
+  console.log("Step 1: Inside uploadFile");
 
+  const file = formData.get("file") as File;
   if (!file) {
+    console.log("Step 2: No file found");
     return { error: true, message: "No file found in form data" };
   }
 
@@ -45,51 +47,56 @@ export default async function uploadFile(
   const contentType = file.type;
   const bucketName = process.env.S3_BUCKET_NAME;
 
-  console.log("Clerk User ID:", clerkUserId);
+  console.log("Step 3: Validating S3 parameters");
 
-  // Check if all required parameters are defined
   if (!bucketName || !originalFileName || !fileStream || !contentType) {
+    console.log("Step 4: Missing required parameters");
     return {
       error: true,
       message: "Missing required parameters for file upload",
     };
   }
 
-  // Append a UUID to the original file name to ensure uniqueness
   const uniqueFileName = `${originalFileName}-${uuidv4()}`;
 
   try {
-    // Check if the user exists in the database
+    console.log("Step 5: Checking if user exists in the database");
+
     const userExists = await db.user.findUnique({
       where: { clerkUserId },
     });
 
     if (!userExists) {
+      console.log("Step 6: User not found in the database");
       return {
         error: true,
         message: `User with Clerk ID ${clerkUserId} not found`,
       };
     }
 
+    console.log("Step 7: User exists, proceeding with rate limiting");
+
     const { success } = await ratelimit.limit(userExists.id);
 
     if (!success) {
+      console.log("Step 8: Rate limiting failed");
       return { error: true, message: "Unable to process at this time" };
     }
+
+    console.log("Step 9: Fetching user data from Clerk");
 
     const fullUserData = await clerkClient.users.getUser(
       userExists.clerkUserId
     );
 
-    if (!fullUserData?.privateMetadata?.["can-upload"] !== true) {
+    if (!fullUserData?.privateMetadata?.["can-upload"]) {
+      console.log("Step 10: User not allowed to upload");
       return { error: true, message: "User is not allowed to upload files" };
     }
 
-    console.log("userExists before aws:", userExists);
-    // Convert the ReadableStream to a Buffer
-    const fileBuffer = await streamToBuffer(fileStream);
+    console.log("Step 11: Starting file upload to S3");
 
-    // Upload file to S3 with public-read ACL
+    const fileBuffer = await streamToBuffer(fileStream);
     const params = {
       Bucket: bucketName,
       Key: uniqueFileName,
@@ -98,11 +105,10 @@ export default async function uploadFile(
     };
 
     const s3Response = await s3.upload(params).promise();
+    console.log("Step 12: File uploaded to S3:", s3Response);
+
     const fileUrl = s3Response.Location;
 
-    // Create file record in the database and associate it with the user
-
-    console.log("userExists:", userExists);
     const newFile = await db.file.create({
       data: {
         name: originalFileName,
@@ -110,8 +116,7 @@ export default async function uploadFile(
       },
     });
 
-    console.log("newFile:", newFile);
-    console.log("userExists:", userExists);
+    console.log("Step 13: New file created:", newFile);
 
     await db.userFile.create({
       data: {
@@ -120,14 +125,14 @@ export default async function uploadFile(
       },
     });
 
-    console.log("UserFile created:", {
+    console.log("Step 14: UserFile entry created:", {
       userId: userExists.id,
       fileId: newFile.id,
     });
 
     return newFile;
   } catch (error) {
-    console.error("Error uploading file to S3:", error);
+    console.error("Error during file upload:", error);
     return { error: true, message: "Failed to upload file" };
   }
 }
