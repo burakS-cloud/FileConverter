@@ -85,6 +85,7 @@ export default async function uploadFile(
       return { error: true, message: "User is not allowed to upload files" };
     }
 
+    console.log("userExists before aws:", userExists);
     // Convert the ReadableStream to a Buffer
     const fileBuffer = await streamToBuffer(fileStream);
 

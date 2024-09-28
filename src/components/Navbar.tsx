@@ -8,7 +8,7 @@ export default function Navbar() {
   return (
     <nav className="flex items-center justify-between w-full mb-8 p-4">
       <div className="text-2xl font-bold transition duration-300 ease-in-out transform hover:text-blue-400">
-        <Link href="/">File Converter</Link>
+        <Link href="/">FileConverter</Link>
       </div>
       <ul className="flex space-x-6">
         <li>
